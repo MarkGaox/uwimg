@@ -91,12 +91,112 @@ float three_way_min(float a, float b, float c)
     return (a < b) ? ( (a < c) ? a : c) : ( (b < c) ? b : c) ;
 }
 
+/**
+ * Matrix for converting rgb to hue:
+ * | 1      0          0 |
+ * |-0.5  sqrt(3)/2    0 |
+ * |-0.5 -sqrt(3)/2    0 |
+**/
+float single_rgb_to_hsv(float *R, float *G, float *B) {
+    float V = MAX(MAX(*R, *G), *B);
+    float m = MIN(MIN(*R, *G), *B);
+    float C = V - m;
+    float S = 0;
+    if (V > 0.001) {
+        S = C / V;
+    }
+
+    // Constant could make it 
+    float ymag = sqrt(3) / 2;
+    float x = *R - 0.5 * (*G) - 0.5 * (*B);
+    float y = ymag * (*G) - ymag * (*B);
+    // Scale to [0, 360];
+    float H = atan2(y, x) / (2.0f * 3.1415926) * 360.0f;
+    if (H < 0.0f) {
+        H += 360.0f;
+    }
+
+    H /= 360.0f;
+    
+    *R = H;
+    *G = S;
+    *B = V;
+}
+
+// Note that at 100% saturation, there is always a color at
+// max and at 0
+void single_hsv_to_rgb(float *H, float *S, float *V) {
+    *H *= 360.0f;
+
+    float maxCol = *V;
+    float minCol = maxCol * (1 - *S);
+
+    float midScale = fmod(*H, 120);
+    // Used to judge the order of assigning maxCol and midCol
+    int assignSeq = midScale < 60.0f;
+    if (midScale > 60.0) {
+        midScale = 120.0f - midScale;
+    }
+    midScale /= 60.0f;
+    float midCol = (maxCol - minCol) * midScale + minCol;
+    
+    // There are 6 choices of assigning the three value.
+    if ( *H <= 120.0) {
+        *V = minCol;
+        if (assignSeq) {
+            *H = maxCol;
+            *S = midCol;
+        } else {
+            *S = maxCol;
+            *H = midCol;
+        }
+    } else if (*H <= 240.0) {
+        *H = minCol;
+        if (assignSeq) {
+            *S = maxCol;
+            *V = midCol;
+        } else {
+            *V = maxCol;
+            *S = midCol;
+        }
+    } else {
+        *S = minCol;
+        if (assignSeq) {
+            *V = maxCol;
+            *H = midCol;
+        } else {
+            *H = maxCol;
+            *V = midCol;
+        }
+    }
+}
+
 void rgb_to_hsv(image im)
 {
-    // TODO Fill this in
+    int Mh = im.h;
+    int Mw = im.w;
+
+    for (int h = 0; h < Mh; h++) {
+        for (int w = 0; w < Mw; w++) {
+            float *R =  im.data + 0 * (im.w * im.h) + h * im.w + w;
+            float *G =  im.data + 1 * (im.w * im.h) + h * im.w + w;
+            float *B =  im.data + 2 * (im.w * im.h) + h * im.w + w;
+            single_rgb_to_hsv(R, G, B);
+        }
+    }
 }
 
 void hsv_to_rgb(image im)
 {
-    // TODO Fill this in
+    int Mh = im.h;
+    int Mw = im.w;
+
+    for (int h = 0; h < Mh; h++) {
+        for (int w = 0; w < Mw; w++) {
+            float *H =  im.data + 0 * (im.w * im.h) + h * im.w + w;
+            float *S =  im.data + 1 * (im.w * im.h) + h * im.w + w;
+            float *V =  im.data + 2 * (im.w * im.h) + h * im.w + w;
+            single_hsv_to_rgb(H, S, V);
+        }
+    }
 }
