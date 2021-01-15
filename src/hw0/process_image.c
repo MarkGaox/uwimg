@@ -64,7 +64,7 @@ void shift_image(image im, int c, float v)
     int pixel_one_c = im.h * im.w;
     for (int i = 0; i < pixel_one_c; i++) {
         int index = c * (im.h * im.w) + i;
-        im.data[index] +=  v;
+        im.data[index] += v;
     }
 }
 
@@ -91,6 +91,26 @@ float three_way_min(float a, float b, float c)
     return (a < b) ? ( (a < c) ? a : c) : ( (b < c) ? b : c) ;
 }
 
+int max_RGB(float R, float G, float B, float C) {
+
+    if (C < 0.001f) {
+        return 0;
+    } else if (R > G) {
+        if (R > B) {
+            return 1;
+        } else {
+            return 3;
+        }
+    } else {
+        if (G > B) {
+            return 2;
+        } else {
+            return 3;
+        }
+    }
+
+}
+
 /**
  * Matrix for converting rgb to hue:
  * | 1      0          0 |
@@ -106,17 +126,29 @@ float single_rgb_to_hsv(float *R, float *G, float *B) {
         S = C / V;
     }
 
-    // Constant could make it 
-    float ymag = sqrt(3) / 2;
-    float x = *R - 0.5 * (*G) - 0.5 * (*B);
-    float y = ymag * (*G) - ymag * (*B);
-    // Scale to [0, 360];
-    float H = atan2(y, x) / (2.0f * 3.1415926) * 360.0f;
-    if (H < 0.0f) {
-        H += 360.0f;
+    int HMode = max_RGB(*R, *G, *B, C);
+    float HPrime = 0.00f;
+    switch (HMode) {
+    case 0:
+        HPrime = 0;
+        break;
+    case 1:
+        HPrime = ((*G) - (*B)) / C;
+        break;
+    case 2:
+        HPrime = ((*B) - (*R)) / C + 2.0f;
+        break;
+    case 3:
+        HPrime = ((*R) - (*G)) / C + 4.0f;
+        break;
+    default:
+        HPrime = 0;
     }
 
-    H /= 360.0f;
+    float H = HPrime / 6.0f;
+    if (HPrime < 0.0f) {
+        H += 1.0f;
+    }
     
     *R = H;
     *G = S;
@@ -132,8 +164,6 @@ void single_hsv_to_rgb(float *H, float *S, float *V) {
     float minCol = maxCol * (1 - *S);
 
     float midScale = fmod(*H, 120);
-    // Used to judge the order of assigning maxCol and midCol
-    int assignSeq = midScale < 60.0f;
     if (midScale > 60.0) {
         midScale = 120.0f - midScale;
     }
@@ -143,7 +173,7 @@ void single_hsv_to_rgb(float *H, float *S, float *V) {
     // There are 6 choices of assigning the three value.
     if ( *H <= 120.0) {
         *V = minCol;
-        if (assignSeq) {
+        if (*H < 60.0) {
             *H = maxCol;
             *S = midCol;
         } else {
@@ -151,17 +181,17 @@ void single_hsv_to_rgb(float *H, float *S, float *V) {
             *H = midCol;
         }
     } else if (*H <= 240.0) {
-        *H = minCol;
-        if (assignSeq) {
+        if (*H < 180.0) {
             *S = maxCol;
             *V = midCol;
         } else {
             *V = maxCol;
             *S = midCol;
         }
+        *H = minCol;
     } else {
         *S = minCol;
-        if (assignSeq) {
+        if (*H < 300.0) {
             *V = maxCol;
             *H = midCol;
         } else {
