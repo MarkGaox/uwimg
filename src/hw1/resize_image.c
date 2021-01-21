@@ -50,7 +50,21 @@ float bilinear_interpolate(image im, float x, float y, int c)
 
 image bilinear_resize(image im, int w, int h)
 {
-    // TODO
-    return make_image(1,1,1);
+    image rim = make_image(w, h, 3);
+    
+    float ax = (float)im.w / (float)w;
+    float bx = ax * 0.5f - 0.5f;
+    float ay = (float)im.h / (float)h;
+    float by = ay * 0.5f - 0.5f;
+    for (int c = 0; c < 3; c++) {
+        for (int j = 0; j < h; j++) {
+            for (int i = 0; i < w; i++) {
+                float x = ax * i + bx;
+                float y = ay * j + by;
+                set_pixel(rim, i, j, c, bilinear_interpolate(im, x, y, c));
+            }
+        }
+    }
+    return rim;
 }
 
