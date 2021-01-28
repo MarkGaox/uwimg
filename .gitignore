@@ -13,3 +13,6 @@ ehthumbs.db
 Icon?
 Thumbs.db
 *.swp
+
+# Editor Settings
+.vscode
