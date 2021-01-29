@@ -122,7 +122,9 @@ image make_emboss_filter()
 // Answer: Blur, sharpen, and gaussian. Because we want to keep the color of the image when using the image.
 
 // Question 2.2.2: Do we have to do any post-processing for the above filters? Which ones and why?
-// Answer: When the sum of the filter is between -1 and 1 we don't have to do any post-processing for the filters.
+// Answer: When the sum of the filter is between 0 and 1 we don't have to do any post-processing for the filters. But if the result
+//         has negative value, then we have to do the post processing. And since all of these filters can possibly has negative
+//         value, we have to do post-processing to all of them.
 
 image make_gaussian_filter(float sigma)
 {
