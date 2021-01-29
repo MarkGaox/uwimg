@@ -77,12 +77,21 @@ int same_image(image a, image b, float eps)
         printf("Expected %d x %d x %d image, got %d x %d x %d\n", b.w, b.h, b.c, a.w, a.h, a.c);
         return 0;
     }
-    for(i = 0; i < a.w*a.h*a.c; ++i){
+    for(i = 0; i < a.w*a.h*a.c; ++i) {
         float thresh = (fabs(b.data[i]) + fabs(a.data[i])) * eps / 2;
         if (thresh > eps) eps = thresh;
         if(!within_eps(a.data[i], b.data[i], eps)) 
         {
+            int w = i % a.w;
+            int h = (i / a.w) % a.h; 
+            int c = i / (a.w*a.h);
+            printf("i: %d, h: %d, w: %d\n", i, a.h, a.w);
             printf("The value should be %f, but it is %f! \n", b.data[i], a.data[i]);
+            printf("It is: %f, %f, %f\n", a.data[0 * (a.w * a.h) + h * a.w + w], a.data[1 * (a.w * a.h) + h * a.w + w], a.data[2 * (a.w * a.h) + h * a.w + w]);
+            printf("Should Be: %f, %f, %f\n", b.data[0 * (a.w * a.h) + h * a.w + w], b.data[1 * (a.w * a.h) + h * a.w + w], b.data[2 * (a.w * a.h) + h * a.w + w]);
+            printf("Error At: %d, %d, %d\n", c, h, w);
+            image original = load_image("data/dog.jpg");
+            printf("Original Data: %f, %f, %f\n", get_pixel(original, w, h, 0), get_pixel(original, w, h, 1), get_pixel(original, w, h, 2));
             return 0;
         }
     }
