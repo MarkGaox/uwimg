@@ -146,41 +146,135 @@ image make_gaussian_filter(float sigma)
 
 image add_image(image a, image b)
 {
-    // TODO
-    return make_image(1,1,1);
+    assert(a.w == b.w && a.h == b.h && a.c == b.c);
+    image result = make_image(a.w, a.h, a.c);
+    for (int i = 0; i < a.c; i++) {
+        for (int j = 0; j < a.w; j++) {
+            for (int k = 0; k < a.h; k++) {
+                set_pixel(result, j, k, i, get_pixel(a, j, k, i) + get_pixel(b, j, k, i));
+            }
+        }
+    }
+    return result;
 }
 
 image sub_image(image a, image b)
 {
-    // TODO
-    return make_image(1,1,1);
+    assert(a.w == b.w && a.h == b.h && a.c == b.c);
+    image result = make_image(a.w, a.h, a.c);
+    for (int i = 0; i < a.c; i++) {
+        for (int j = 0; j < a.w; j++) {
+            for (int k = 0; k < a.h; k++) {
+                set_pixel(result, j, k, i, get_pixel(a, j, k, i) - get_pixel(b, j, k, i));
+            }
+        }
+    }
+    return result;
 }
 
 image make_gx_filter()
 {
-    // TODO
-    return make_image(1,1,1);
+    image result = make_box_filter(3);
+    set_pixel(result, 0, 0, 0, -1);
+    set_pixel(result, 1, 0, 0, 0);
+    set_pixel(result, 2, 0, 0, 1);
+    set_pixel(result, 0, 1, 0, -2);
+    set_pixel(result, 1, 1, 0, 0);
+    set_pixel(result, 2, 1, 0, 2);
+    set_pixel(result, 0, 2, 0, -1);
+    set_pixel(result, 1, 2, 0, 0);
+    set_pixel(result, 2, 2, 0, 1);
+    return result;
 }
 
 image make_gy_filter()
 {
-    // TODO
-    return make_image(1,1,1);
+    image result = make_box_filter(3);
+    set_pixel(result, 0, 0, 0, -1);
+    set_pixel(result, 1, 0, 0, -2);
+    set_pixel(result, 2, 0, 0, -1);
+    set_pixel(result, 0, 1, 0, 0);
+    set_pixel(result, 1, 1, 0, 0);
+    set_pixel(result, 2, 1, 0, 0);
+    set_pixel(result, 0, 2, 0, 1);
+    set_pixel(result, 1, 2, 0, 2);
+    set_pixel(result, 2, 2, 0, 1);
+    return result;
 }
 
 void feature_normalize(image im)
 {
-    // TODO
+    // find range
+    float max, min = im.data[0];
+    for (int i = 0; i < im.c; i++) {
+        for (int j = 0; j < im.w; j++) {
+            for (int k = 0; k < im.h; k++) {
+               max = MAX(max, get_pixel(im, j, k, i));
+               min = MIN(min, get_pixel(im, j, k, i));
+            }
+        }
+    }
+
+    float range = max - min;
+    for (int i = 0; i < im.c; i++) {
+        for (int j = 0; j < im.w; j++) {
+            for (int k = 0; k < im.h; k++) {
+                if (range == 0) {
+                    set_pixel(im, j, k, i, 0.0);
+                } else {
+                    set_pixel(im, j, k, i, (get_pixel(im, j, k, i) - min) / range);
+                }
+            }
+        }
+    }
 }
 
 image *sobel_image(image im)
 {
-    // TODO
-    return calloc(2, sizeof(image));
+    image *result = calloc(2, sizeof(image));
+    // gradient magnitude. G = sqrt(G_x^2 + G_y^2)
+    image gx = convolve_image(im, make_gx_filter(), 0);
+    image gy = convolve_image(im, make_gy_filter(), 0);
+    image magnitude = make_image(im.w, im.h, 1);
+    image direction = make_image(im.w, im.h, 1);
+
+    for (int j = 0; j < im.h; j++) {
+        for (int k = 0; k < im.w; k++) {
+            float x = get_pixel(gx, k, j, 0);
+            float y = get_pixel(gy, k, j, 0);
+            set_pixel(magnitude, k, j, 0, sqrtf(x * x + y * y));
+            set_pixel(direction, k, j, 0, atan2f(y, x));
+        }
+    }
+
+    result[0] = magnitude;
+    result[1] = direction;
+    free_image(gx);
+    free_image(gy);
+    return result;
 }
 
 image colorize_sobel(image im)
 {
-    // TODO
-    return make_image(1,1,1);
+    image *sobel = sobel_image(im);
+    image mag = sobel[0];
+    image dir = sobel[1];
+    feature_normalize(mag);
+    feature_normalize(dir);
+    image result = make_image(im.w, im.h, im.c);
+
+    for (int i = 0; i < im.w; i++) {
+        for (int j = 0; j < im.h; j++) {
+            set_pixel(result, i, j, 0, get_pixel(dir, i, j, 0));
+        }
+    }
+
+    for (int i = 0; i < im.w; i++) {
+        for (int j = 0; j < im.h; j++) {
+            set_pixel(result, i, j, 1, get_pixel(mag, i, j, 0));
+            set_pixel(result, i, j, 2, get_pixel(mag, i, j, 0));
+        }
+    }
+
+    return result;
 }
