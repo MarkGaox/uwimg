@@ -41,13 +41,58 @@ void draw_line(image im, float x, float y, float dx, float dy)
     }
 }
 
+void print_img(image im) {
+    for (int i = 0; i < im.c; i++) {
+        for (int j = 0; j < im.h; j++) {
+            for (int k = 0; k < im.w; k++) {
+                printf("%f ", get_pixel(im, k, j, i));
+            }
+            printf("\n");
+        }
+    }
+    printf("\n");
+}
+
 // Make an integral image or summed area table from an image
 // image im: image to process
 // returns: image I such that I[x,y] = sum{i<=x, j<=y}(im[i,j])
 image make_integral_image(image im)
 {
+    // if (im.h < 10 && im.w < 10) {
+    //     print_img(im);
+    // }
+
     image integ = make_image(im.w, im.h, im.c);
-    // TODO: fill in the integral image
+    for (int i = 0; i < im.c; i++) {
+        for (int j = 0; j < im.h; j++) {
+            for (int k = 0; k < im.w; k++) {
+                /*
+                i -> c, j -> h, k -> w
+                | A, B|
+                | C, D|
+                */
+                float subtotal = 0.0;
+                if (j - 1 < 0 && k - 1 < 0) {
+                    // case A
+                    subtotal = get_pixel(im, k, j, i);
+                } else if (j - 1 < 0) {
+                    // case B
+                    subtotal = get_pixel(integ, k - 1, j, i) + get_pixel(im, k, j, i);
+                } else if (k - 1 < 0) {
+                    // case C
+                    subtotal = get_pixel(integ, k, j - 1, i) + get_pixel(im, k, j, i);
+                } else {
+                    // case D
+                    subtotal = get_pixel(integ, k, j - 1, i) + get_pixel(im, k, j, i) +
+                         get_pixel(integ, k - 1, j, i) - get_pixel(integ, k - 1, j - 1, i);
+                }
+                set_pixel(integ, k, j, i, subtotal);
+            }
+        }
+    }
+    // if (im.h < 10 && im.w < 10) {
+    //     print_img(integ);
+    // }
     return integ;
 }
 
@@ -57,10 +102,62 @@ image make_integral_image(image im)
 // returns: smoothed image
 image box_filter_image(image im, int s)
 {
-    int i,j,k;
+    // int i,j,k;
+    // printf("image width: %d, image height: %d \n", im.w, im.h);
     image integ = make_integral_image(im);
+    // print_img(integ);
+    // printf("Pixels 0 0 0: %f\n\n", get_pixel(integ, 0, 0, 0));
     image S = make_image(im.w, im.h, im.c);
-    // TODO: fill in S using the integral image.
+    int offset = (s - 1) / 2;
+    // int count = s * s;
+    for (int i = 0; i < im.c; i++) {
+        for (int j = 0; j < im.h; j++) {
+            for (int k = 0; k < im.w; k++) {
+                float bottom_left = 0.0;
+                float top_right = 0.0;
+                float top_left = 0.0;
+                int start_row = j + offset;
+                int start_col = k + offset;
+                int hasBottomLeft = 0, hasTopRight = 0;
+                if (start_col - s >= 0) {
+                    bottom_left = get_pixel(integ, start_col - s, start_row, i);
+                    hasBottomLeft = 1;
+                }
+                if (start_row - s >= 0) {
+                    top_right = get_pixel(integ, start_col, start_row - s, i);
+                    hasTopRight = 1;
+                }
+                if (hasBottomLeft && hasTopRight) {
+                    top_left = get_pixel(integ, start_col - s, start_row - s, i);
+                }
+                // if (k - offset - 1 >= 0) {
+                //     // bottom_left is avaliable
+                //     bottom_left = get_pixel(integ, k - offset - 1, j + offset, i);
+                // }
+                // if (j - offset - 1 >= 0) {
+                //     top_right = get_pixel(integ, k + offset, j - offset - 1, i);
+                // }
+                // if (k - offset - 1 >= 0 && j - offset - 1 >= 0) {
+                //     top_left = get_pixel(integ, k - offset - 1, j - offset - 1, i);
+                // }
+                float subtotal = get_pixel(integ, k + offset, j + offset, i) - top_right - bottom_left + top_left;
+
+                int count = 0;
+                for (int x = 0; x < s; x++) {
+                    for (int y = 0; y < s; y++) {
+                        if ( start_col - x < 0 || start_col - x >= im.w || start_row - y < 0 || start_row - y >= im.h) {
+                            continue;
+                        }
+                        count++;
+                    }
+                }
+
+                set_pixel(S, k, j, i, subtotal / count);
+            }
+        }
+    }
+    // printf("Pixel in S 0 0 0: %f\n\n", get_pixel(S, 0, 0, 0));
+    free_image(integ);
     return S;
 }
 
@@ -82,7 +179,27 @@ image time_structure_matrix(image im, image prev, int s)
 
     // TODO: calculate gradients, structure components, and smooth them
 
-    image S;
+    image Is = make_image(im.w, im.h, 5);
+    // find Ix and Iy first
+    image sobel_x = make_gx_filter();
+    image sobel_y = make_gy_filter();
+    image Ix = convolve_image(im, sobel_x, 0);
+    image Iy = convolve_image(im, sobel_y, 0);
+
+    // Construct image S
+    int length = im.h * im.w;
+    for (int i = 0; i < length; i++) {
+        float delta_x = Ix.data[i];
+        float delta_y = Iy.data[i];
+        float it = im.data[i] - prev.data[i];
+
+        Is.data[i] = delta_x * delta_x;
+        Is.data[i + length] = delta_y * delta_y;
+        Is.data[i + 2 * length] = delta_x * delta_y;
+        Is.data[i + 3 * length] = delta_x * it;
+        Is.data[i + 4 * length] = delta_y * it;
+    }
+    image S = box_filter_image(Is, s);
 
     if(converted){
         free_image(im); free_image(prev);
@@ -98,6 +215,7 @@ image velocity_image(image S, int stride)
     image v = make_image(S.w/stride, S.h/stride, 3);
     int i, j;
     matrix M = make_matrix(2,2);
+    matrix change_t = make_matrix(2, 1);
     for(j = (stride-1)/2; j < S.h; j += stride){
         for(i = (stride-1)/2; i < S.w; i += stride){
             float Ixx = S.data[i + S.w*j + 0*S.w*S.h];
@@ -107,8 +225,29 @@ image velocity_image(image S, int stride)
             float Iyt = S.data[i + S.w*j + 4*S.w*S.h];
 
             // TODO: calculate vx and vy using the flow equation
-            float vx = 0;
-            float vy = 0;
+            M.data[0][0] = Ixx;
+            M.data[0][1] = Ixy;
+            M.data[1][0] = Ixy;
+            M.data[1][1] = Iyy;
+            change_t.data[0][0] = -Ixt;
+            change_t.data[1][0] = -Iyt;
+
+            matrix M_invert = matrix_invert(M);
+            matrix velocity = make_matrix(2, 1);
+            if (M_invert.data) {
+                // M is invertiable 
+                velocity = matrix_mult_matrix(M_invert, change_t);
+                free_matrix(M_invert);
+            } else {
+                free_matrix(M_invert);
+                velocity.data[0][0] = 0;
+                velocity.data[1][0] = 0;
+            }
+
+            float vx = velocity.data[0][0];
+            float vy = velocity.data[1][0];
+
+            free_matrix(velocity);
 
             set_pixel(v, i/stride, j/stride, 0, vx);
             set_pixel(v, i/stride, j/stride, 1, vy);
