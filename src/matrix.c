@@ -411,4 +411,22 @@ void save_matrix(matrix m, const char *fname)
     fclose(fp);
 }
 
+// Map every entry of 
+matrix map_matrix(matrix m, float (*from_func)(int, int, float), int inplace) {
 
+    matrix res;
+
+    if (inplace) {
+        res = m;
+    } else {
+        res = make_matrix(m.rows, m.cols);
+    }
+
+    for (int i = 0; i < m.rows; i++) {
+        for (int j = 0; j < m.cols; j++) {
+            res.data[i][j] = from_func(i, j, res.data[i][j]);
+        }
+    }
+
+    return res;
+}

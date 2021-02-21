@@ -6,24 +6,25 @@ def softmax_model(inputs, outputs):
 
 def neural_net(inputs, outputs):
     print inputs
-    l = [   make_layer(inputs, 32, LOGISTIC),
-            make_layer(32, outputs, SOFTMAX)]
+    l = [   make_layer(inputs, 128, RELU),
+            make_layer(128, 64, LINEAR),
+            make_layer(64, outputs, SOFTMAX)]
     return make_model(l)
 
 print("loading data...")
-train = load_classification_data("mnist.train", "mnist.labels", 1)
-test  = load_classification_data("mnist.test", "mnist.labels", 1)
+train = load_classification_data("cifar.train", "cifar/labels.txt", 1)
+test  = load_classification_data("cifar.test", "cifar/labels.txt", 1)
 print("done")
 print
 
 print("training model...")
 batch = 128
 iters = 1000
-rate = .01
-momentum = .9
-decay = .0
+rate = 0.4
+momentum = .8
+decay = 0.1
 
-m = softmax_model(train.X.cols, train.y.cols)
+m = neural_net(train.X.cols, train.y.cols)
 train_model(m, train, batch, iters, rate, momentum, decay)
 print("done")
 print

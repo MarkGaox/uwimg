@@ -16,3 +16,17 @@ Thumbs.db
 
 # Editor Settings
 .vscode
+
+# Dataset
+train/
+test/
+cifar/
+cifar.tgz
+mnist.test
+mnist.train
+mnist_test.tar.gz
+mnist_train.tar.gz
+mnist.labels
+cifar.train
+cifar.test
+
